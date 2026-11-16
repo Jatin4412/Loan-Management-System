@@ -90,7 +90,7 @@ async function getAnalyticsSnapshot() {
     },
     monthlyCollections,
     loanTypeDistribution: loanTypeRows.map(row => ({
-      loanType: String(row.loanType || 'Unspecified'),
+      loanType: ['PERSONAL', 'HOME', 'VEHICLE', 'BUSINESS'].includes(String(row.loanType || '').toUpperCase()) ? String(row.loanType).toUpperCase() : 'OTHER',
       total: Number(row.total || 0)
     }))
   };

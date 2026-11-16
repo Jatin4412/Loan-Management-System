@@ -30,6 +30,8 @@ function containsPersonalIdentifier(value) {
     /\b[A-Z]{5}\d{4}[A-Z]\b/i,
     /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/,
     /\b(?:\+91[\s-]?)?[6-9]\d{9}\b/,
+    /\b\d{9,18}\b/,
+    /\b(?:customer|borrower|client|applicant)\s+(?:named\s+)?[A-Z][a-z]{1,}\s+[A-Z][a-z]{1,}\b/
     /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i
   ];
 

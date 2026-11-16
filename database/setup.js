@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
@@ -274,8 +274,8 @@ async function main() {
     await connection.changeUser({ database: DB_NAME });
 
     schema = schema
-      .replace(/CREATE DATABASE IF NOT EXISTS loan_management[\\s\\S]*?;\\s*/i, '')
-      .replace(/USE loan_management\\s*;/i, '');
+      .replace(/CREATE DATABASE IF NOT EXISTS loan_management[\s\S]*?;\s*/i, '')
+      .replace(/USE loan_management\s*;/i, '');
 
     console.log('Creating tables...');
     await connection.query(schema);

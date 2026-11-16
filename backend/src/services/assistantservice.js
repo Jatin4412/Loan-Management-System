@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = 'openai/gpt-4o-mini';
+const DEFAULT_MODEL = 'openrouter/auto';
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY_ITEMS = 8;
 
@@ -197,6 +197,7 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
 
   return {
     reply: reply.trim(),
+    model: result.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
     source: 'aggregate_analytics'
   };
 };

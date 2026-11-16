@@ -9,7 +9,8 @@ import LoanApplication from "./LoanApplication";
 import Reports from "./Reports";          
 import Payments from "./Payments";        
 import Settings from "./Settings";
-import CustomerProfile from "./CustomerProfile"; 
+import CustomerProfile from "./CustomerProfile";
+import AssistantChat from "./components/AssistantChat"; 
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -373,6 +374,7 @@ const handleDeleteLoan = async (loanId) => {
             )}
           </main>
 
+          <AssistantChat currentView={currentView} />
         </div>
       )}
     </>

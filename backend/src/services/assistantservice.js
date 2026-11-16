@@ -100,7 +100,7 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
-    throw createError('OpenRouter is not configured. Add OPENROUTER_API_KEY to backend/.env and restart the server.', 503);
+    throw createError('OpenRouter is not configured. Add OPENROUTER_API_KEY to the repository root .env file and restart the server.', 503);
   }
 
   const cleanMessage = String(message || '').trim();

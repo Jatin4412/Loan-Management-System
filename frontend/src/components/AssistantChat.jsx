@@ -170,12 +170,23 @@ export default function AssistantChat({ currentView }) {
   const [messages, setMessages] = useState([welcomeMessage]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const composerRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isLoading, isOpen]);
+
+  useEffect(() => {
+    const textarea = composerRef.current;
+    if (!textarea) return;
+
+    const maxHeight = 80;
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + "px";
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [draft]);
 
   const sendMessage = async (value) => {
     const content = String(value === undefined ? draft : value).trim();
@@ -324,6 +335,7 @@ export default function AssistantChat({ currentView }) {
 
           <form className="assistant-chat-composer" onSubmit={handleSubmit}>
             <textarea
+              ref={composerRef}
               value={draft}
               onChange={event => setDraft(event.target.value)}
               onKeyDown={handleKeyDown}

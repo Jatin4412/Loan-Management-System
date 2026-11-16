@@ -7,7 +7,8 @@ const payment = require('../controllers/paymentcontroller');
 const dashboard = require('../controllers/dashboardcontroller');
 const auth = require('../controllers/authcontroller');
 const settings = require('../controllers/settingscontroller');
-const report = require('../controllers/reportcontroller'); 
+const report = require('../controllers/reportcontroller');
+const assistant = require('../controllers/assistantcontroller'); 
 
 const { verifyToken, authorizeRole } = require('../middleware/auth');
 
@@ -48,6 +49,8 @@ router.get('/reports/overdue', verifyToken, report.overdueReport);
 router.get('/reports/active-loans', verifyToken, report.activeLoanReport);
 router.get('/reports/closed-loans', verifyToken, report.closedLoanReport);
 router.get('/reports/monthly-collections', verifyToken, report.monthlyCollectionReport);
+
+router.post('/assistant/chat', verifyToken, assistant.chat);
 
 router.put('/settings', verifyToken, settings.update);
 router.get('/settings', verifyToken, settings.getSettings);

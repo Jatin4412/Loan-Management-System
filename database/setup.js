@@ -266,11 +266,18 @@ async function main() {
     const schemaPath = path.join(__dirname, 'schema.sql');
     let schema = fs.readFileSync(schemaPath, 'utf8');
 
-    schema = schema
-      .replace(/CREATE DATABASE IF NOT EXISTS loan_management/i, 'CREATE DATABASE IF NOT EXISTS ' + DB_NAME)
-      .replace(/USE loan_management\s*;/i, 'USE ' + DB_NAME + ';');
+    console.log('Creating database...');
+    await connection.query(
+      'CREATE DATABASE IF NOT EXISTS `' + DB_NAME + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci'
+    );
 
-    console.log('Creating database and tables...');
+    await connection.changeUser({ database: DB_NAME });
+
+    schema = schema
+      .replace(/CREATE DATABASE IF NOT EXISTS loan_management[\\s\\S]*?;\\s*/i, '')
+      .replace(/USE loan_management\\s*;/i, '');
+
+    console.log('Creating tables...');
     await connection.query(schema);
 
     console.log('Creating synthetic demo records...');
@@ -304,6 +311,8 @@ async function main() {
 }
 
 main().catch(error => {
-  console.error('\nDatabase setup failed: ' + error.message);
+  const util = require('util');
+  console.error('\\nDatabase setup failed. Full error details:');
+  console.error(error && error.stack ? error.stack : util.inspect(error, { depth: 6 }));
   process.exitCode = 1;
 });

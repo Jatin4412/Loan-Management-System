@@ -28,6 +28,106 @@ function FiTrendingIcon(props) {
   return <FiActivity {...props} />;
 }
 
+function renderInline(text) {
+  const parts = String(text).split(/(\\*\\*[^*]+\\*\\*|__[^_]+__|\\x60[^\\x60]+\\x60)/g);
+  const tick = String.fromCharCode(96);
+  return parts.map((part, index) => {
+    if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith(tick) && part.endsWith(tick)) {
+      return <code key={index}>{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
+function isTableRow(line) {
+  const trimmed = line.trim();
+  return trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.includes('|');
+}
+
+function getTableCells(line) {
+  return line.trim().replace(/^\\|/, '').replace(/\\|$/, '').split('|').map(cell => cell.trim());
+}
+
+function isTableDivider(line) {
+  return isTableRow(line) && getTableCells(line).every(cell => /^:?-{3,}:?$/.test(cell));
+}
+
+function isBlockStart(lines, index) {
+  const line = lines[index].trim();
+  return !line || /^#{1,3}\\s+/.test(line) || /^[-*]\\s+/.test(line) || /^\\d+\\.\\s+/.test(line) || isTableRow(line);
+}
+
+function AssistantMessage({ content }) {
+  const lines = String(content || '').replace(/\\r/g, '').split('\\n');
+  const blocks = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trim();
+    if (!line) { index += 1; continue; }
+
+    if (isTableRow(line)) {
+      const tableLines = [];
+      while (index < lines.length && isTableRow(lines[index])) {
+        tableLines.push(lines[index]);
+        index += 1;
+      }
+      const hasDivider = tableLines.length > 1 && isTableDivider(tableLines[1]);
+      const header = getTableCells(tableLines[0]);
+      const body = tableLines.slice(hasDivider ? 2 : 1).map(getTableCells);
+      blocks.push(
+        <div className='assistant-chat-table-wrap' key={'table-' + index}>
+          <table className='assistant-chat-table'>
+            <thead><tr>{header.map((cell, cellIndex) => <th key={cellIndex}>{renderInline(cell)}</th>)}</tr></thead>
+            <tbody>{body.map((row, rowIndex) => (
+              <tr key={rowIndex}>{header.map((_, cellIndex) => <td key={cellIndex}>{renderInline(row[cellIndex] || '')}</td>)}</tr>
+            ))}</tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,3})\\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const HeadingTag = level === 1 ? 'h3' : level === 2 ? 'h4' : 'h5';
+      blocks.push(<HeadingTag key={'heading-' + index}>{renderInline(heading[2])}</HeadingTag>);
+      index += 1;
+      continue;
+    }
+
+    const listMatch = line.match(/^([-*]|\\d+\\.)\\s+(.+)$/);
+    if (listMatch) {
+      const ordered = /^\\d+\\./.test(listMatch[1]);
+      const ListTag = ordered ? 'ol' : 'ul';
+      const items = [];
+      while (index < lines.length) {
+        const itemMatch = lines[index].trim().match(/^([-*]|\\d+\\.)\\s+(.+)$/);
+        if (!itemMatch || /^\\d+\\./.test(itemMatch[1]) !== ordered) break;
+        items.push(itemMatch[2]);
+        index += 1;
+      }
+      blocks.push(<ListTag key={'list-' + index}>{items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item)}</li>)}</ListTag>);
+      continue;
+    }
+
+    const paragraph = [];
+    while (index < lines.length && !isBlockStart(lines, index)) {
+      paragraph.push(lines[index].trim());
+      index += 1;
+    }
+    if (paragraph.length) {
+      blocks.push(<p key={'paragraph-' + index}>{renderInline(paragraph.join(' '))}</p>);
+    }
+  }
+
+  return <div className='assistant-chat-markdown'>{blocks}</div>;
+}
+
 export default function AssistantChat({ currentView }) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -154,7 +254,7 @@ export default function AssistantChat({ currentView }) {
             {messages.map(item => (
               <div key={item.id} className={"assistant-chat-row " + (item.role === "user" ? "user" : "assistant")}>
                 <div className={"assistant-chat-bubble " + (item.role === "user" ? "user" : "assistant") + (item.isError ? " error" : "")}>
-                  {item.content}
+                  {item.role === 'assistant' ? <AssistantMessage content={item.content} /> : item.content}
                 </div>
               </div>
             ))}

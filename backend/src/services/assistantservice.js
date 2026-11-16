@@ -41,7 +41,7 @@ async function getAnalyticsSnapshot() {
     db.execute('SELECT COUNT(*) AS totalCustomers FROM customers'),
     db.execute("SELECT COUNT(*) AS totalLoans, COALESCE(SUM(CASE WHEN status IN ('APPROVED','ACTIVE') THEN 1 ELSE 0 END),0) AS activeLoans, COALESCE(SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END),0) AS pendingLoans, COALESCE(SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END),0) AS rejectedLoans, COALESCE(SUM(CASE WHEN status = 'CLOSED' THEN 1 ELSE 0 END),0) AS closedLoans, COALESCE(SUM(CASE WHEN status IN ('APPROVED','ACTIVE') THEN balance ELSE 0 END),0) AS activeOutstandingBalance FROM loans"),
     db.execute("SELECT COUNT(*) AS overdueInstallments, COALESCE(SUM(GREATEST(COALESCE(amount,0) - COALESCE(principal_paid,0) - COALESCE(interest_paid,0) - COALESCE(penalty_paid,0),0)),0) AS overdueAmount FROM loan_schedule WHERE status = 'OVERDUE'"),
-    db.execute("SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month, COALESCE(SUM(amount),0) AS total FROM payments WHERE payment_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m-01') GROUP BY DATE_FORMAT(payment_date, '%Y-%m') ORDER BY month ASC"),
+    db.execute("SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month, COALESCE(SUM(amount),0) AS total FROM payments WHERE payment_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m-01') AND payment_date < DATE_ADD(CURDATE(), INTERVAL 1 DAY) GROUP BY DATE_FORMAT(payment_date, '%Y-%m') ORDER BY month ASC"),
     db.execute('SELECT loan_type AS loanType, COUNT(*) AS total FROM loans GROUP BY loan_type ORDER BY total DESC')
   ]);
 

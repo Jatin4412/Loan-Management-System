@@ -1,5 +1,4 @@
 const settingsService = require('../services/settingservice');
-const bcrypt = require('bcrypt'); // or 'bcryptjs' depending on your package.json
 
 exports.getSettings = async (req, res, next) => {
   try {

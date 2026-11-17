@@ -13,6 +13,14 @@ import "./AssistantChat.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
+function createSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 const welcomeMessage = {
   id: "welcome",
   role: "assistant",
@@ -169,6 +177,7 @@ function AssistantMessage({ content }) {
 export default function AssistantChat({ currentView }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [sessionId, setSessionId] = useState(createSessionId);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState([welcomeMessage]);
   const [isLoading, setIsLoading] = useState(false);
@@ -227,6 +236,7 @@ export default function AssistantChat({ currentView }) {
         body: JSON.stringify({
           message: content,
           history,
+          sessionId,
           pageContext: { view: currentView }
         })
       });
@@ -275,6 +285,8 @@ export default function AssistantChat({ currentView }) {
   const clearConversation = () => {
     setMessages([welcomeMessage]);
     setDraft("");
+    setSessionId(createSessionId());
+    setIsExpanded(false);
   };
 
   return (

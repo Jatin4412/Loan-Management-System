@@ -600,3 +600,58 @@
 .assistant-chat-table tbody tr:nth-child(even) {
   background: var(--card-bg, rgba(255, 255, 255, 0.025));
 }
+
+
+.assistant-chat-panel.expanded {
+  position: fixed;
+  inset: 18px;
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  border-radius: 18px;
+  z-index: 1601;
+}
+
+.assistant-chat-panel.expanded .assistant-chat-messages {
+  padding: 22px clamp(18px, 4vw, 64px);
+}
+
+.assistant-chat-panel.expanded .assistant-chat-bubble {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.assistant-chat-panel.expanded .assistant-chat-bubble.user {
+  max-width: min(78%, 1100px);
+}
+
+.assistant-chat-panel.expanded .assistant-chat-bubble.assistant {
+  max-width: min(100%, 1200px);
+}
+
+.assistant-chat-panel.expanded .assistant-chat-markdown h3,
+.assistant-chat-panel.expanded .assistant-chat-markdown h4,
+.assistant-chat-panel.expanded .assistant-chat-markdown h5 {
+  font-size: 15px;
+}
+
+.assistant-chat-panel.expanded .assistant-chat-table {
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .assistant-chat-panel.expanded {
+    inset: 8px;
+    border-radius: 14px;
+  }
+
+  .assistant-chat-panel.expanded .assistant-chat-messages {
+    padding: 14px 10px;
+  }
+
+  .assistant-chat-panel.expanded .assistant-chat-bubble.user {
+    max-width: 88%;
+  }
+}

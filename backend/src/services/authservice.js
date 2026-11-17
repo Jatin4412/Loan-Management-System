@@ -3,7 +3,8 @@ const jwt=require('jsonwebtoken');
 const userRepository=require('../repositories/userrepo');
 
 exports.register=async(data)=>{
-const{name,email,password,role='USER',phone=null}=data;
+const{name,email,password,phone=null}=data;
+const role='USER';
 const existingUser=await userRepository.findByEmail(email);
 if(existingUser)throw new Error('Email already exists');
 const hashedPassword=await bcrypt.hash(password,10);

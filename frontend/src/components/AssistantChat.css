@@ -214,12 +214,14 @@
 
 .assistant-chat-suggestions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   margin-top: 2px;
 }
 
 .assistant-chat-suggestions p {
+  width: 100%;
   margin: 0 0 2px;
   color: #64748b;
   font-size: 10px;
@@ -229,16 +231,16 @@
 }
 
 .assistant-chat-suggestions button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 10px 11px;
+  gap: 6px;
+  padding: 7px 9px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 11px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.025);
   color: #cbd5e1;
   text-align: left;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
 }

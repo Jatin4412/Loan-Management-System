@@ -22,7 +22,8 @@ exports.chat = async (req, res, next) => {
     const result = await assistantService.chat({
       message,
       history: body.history,
-      pageView: body.pageContext && body.pageContext.view
+      pageView: body.pageContext && body.pageContext.view,
+      sessionId: body.sessionId
     });
 
     return res.json({

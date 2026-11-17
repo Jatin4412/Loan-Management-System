@@ -655,3 +655,9 @@
     max-width: 88%;
   }
 }
+
+
+.assistant-chat-header-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

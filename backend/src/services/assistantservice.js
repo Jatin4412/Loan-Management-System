@@ -162,11 +162,11 @@ async function getPortfolioSummary(args) {
 
   const [loans] = await db.execute(
     'SELECT COUNT(*) AS totalLoans, ' +
-    'SUM(CASE WHEN status IN (\\'APPROVED\\', \\'ACTIVE\\') THEN 1 ELSE 0 END) AS activeLoans, ' +
-    'SUM(CASE WHEN status = \\'PENDING\\' THEN 1 ELSE 0 END) AS pendingLoans, ' +
-    'SUM(CASE WHEN status = \\'REJECTED\\' THEN 1 ELSE 0 END) AS rejectedLoans, ' +
-    'SUM(CASE WHEN status = \\'CLOSED\\' THEN 1 ELSE 0 END) AS closedLoans, ' +
-    'COALESCE(SUM(CASE WHEN status IN (\\'APPROVED\\', \\'ACTIVE\\') THEN balance ELSE 0 END), 0) AS outstandingBalance ' +
+    'SUM(CASE WHEN status IN (\'APPROVED\', \'ACTIVE\') THEN 1 ELSE 0 END) AS activeLoans, ' +
+    'SUM(CASE WHEN status = \'PENDING\' THEN 1 ELSE 0 END) AS pendingLoans, ' +
+    'SUM(CASE WHEN status = \'REJECTED\' THEN 1 ELSE 0 END) AS rejectedLoans, ' +
+    'SUM(CASE WHEN status = \'CLOSED\' THEN 1 ELSE 0 END) AS closedLoans, ' +
+    'COALESCE(SUM(CASE WHEN status IN (\'APPROVED\', \'ACTIVE\') THEN balance ELSE 0 END), 0) AS outstandingBalance ' +
     'FROM loans'
   );
 
@@ -206,11 +206,11 @@ async function getCollectionSummary(args) {
   }
 
   const [rows] = await db.execute(
-    'SELECT DATE_FORMAT(payment_date, \\'%Y-%m\\') AS month, ' +
+    'SELECT DATE_FORMAT(payment_date, \'%Y-%m\') AS month, ' +
     'COUNT(*) AS paymentCount, COALESCE(SUM(amount), 0) AS collectionTotal ' +
     'FROM payments WHERE payment_date >= ? ' +
     'AND payment_date < DATE_ADD(?, INTERVAL 1 DAY) ' +
-    'GROUP BY DATE_FORMAT(payment_date, \\'%Y-%m\\') ORDER BY month ASC',
+    'GROUP BY DATE_FORMAT(payment_date, \'%Y-%m\') ORDER BY month ASC',
     [args.startDate, args.endDate]
   );
 
@@ -238,7 +238,7 @@ async function getOverdueSummary(args) {
     'SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) BETWEEN 0 AND 30 THEN 1 ELSE 0 END) AS overdueUpTo30Days, ' +
     'SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS overdue31To60Days, ' +
     'SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) > 60 THEN 1 ELSE 0 END) AS overdueOver60Days ' +
-    'FROM loan_schedule WHERE status = \\'OVERDUE\\''
+    'FROM loan_schedule WHERE status = \'OVERDUE\''
   );
 
   const row = rows[0] || {};
@@ -261,7 +261,7 @@ async function getLoanDistribution(args) {
   const [rows] = await db.execute(
     'SELECT loan_type AS loanType, COUNT(*) AS loanCount, ' +
     'COALESCE(SUM(principal_amount), 0) AS totalPrincipal, ' +
-    'COALESCE(SUM(CASE WHEN status IN (\\'APPROVED\\', \\'ACTIVE\\') THEN balance ELSE 0 END), 0) AS outstandingBalance ' +
+    'COALESCE(SUM(CASE WHEN status IN (\'APPROVED\', \'ACTIVE\') THEN balance ELSE 0 END), 0) AS outstandingBalance ' +
     'FROM loans GROUP BY loan_type ORDER BY loanCount DESC'
   );
 

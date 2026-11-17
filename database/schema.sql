@@ -170,3 +170,16 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 -- The application currently inserts loans without setting loan_number.
 -- Keep this column nullable until the app defines a loan-number generation rule.
+
+CREATE TABLE IF NOT EXISTS knowledge_chunks (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  document_title VARCHAR(255) NOT NULL,
+  source_file VARCHAR(255) NOT NULL,
+  section VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  chunk_hash CHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_knowledge_chunk_hash (chunk_hash),
+  FULLTEXT KEY ft_knowledge_search (document_title, section, content)
+) ENGINE=InnoDB;

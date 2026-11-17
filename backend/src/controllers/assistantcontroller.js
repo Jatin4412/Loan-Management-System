@@ -23,7 +23,8 @@ exports.chat = async (req, res, next) => {
       message,
       history: body.history,
       pageView: body.pageContext && body.pageContext.view,
-      sessionId: body.sessionId
+      sessionId: body.sessionId,
+      requesterId: req.user.id
     });
 
     return res.json({

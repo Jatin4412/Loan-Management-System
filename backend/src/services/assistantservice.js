@@ -4,7 +4,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'openrouter/auto';
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY_ITEMS = 8;
-const MAX_TOOL_ROUNDS = 4;
+const MAX_TOOL_ROUNDS = 6;
 
 const SYSTEM_PROMPT = [
   'You are SmarterLoans AI, a multilingual read-only assistant inside a loan management application.',
@@ -12,6 +12,7 @@ const SYSTEM_PROMPT = [
   'LANGUAGE: Detect the language of the latest user message and answer in that same language. Support English, Hindi, Hinglish and other languages supported by the selected model. Do not switch languages unless requested.',
   'KNOWLEDGE SEARCH: Use search_knowledge for application workflows, definitions, calculations and documented procedures. The knowledge base is currently written in English. When a user asks in another language, translate the topic into concise English search keywords for the search_knowledge query, then answer in the user language.',
   'LIVE DATA: Use the available analytics tools for current database facts. Never invent numbers, date ranges, trends or comparisons. If a required tool does not return the information, explain that it is unavailable.',
+  'TOOL USE: All read-only tools are available on every turn, including follow-up messages. Use search_knowledge for application workflows, terminology, formulas and documented procedures. Use get_portfolio_summary for current portfolio counts and outstanding balance, get_overdue_summary for overdue counts, amounts and aging, get_loan_distribution for loan category breakdowns, and get_collection_summary for payment collections over the requested date range. When a question requires more than one type of data, call every relevant tool before answering. Continue calling relevant tools after each result until the requested analysis is complete. Do not ask permission before running these read-only queries. The suggested prompts in the interface are examples, not a whitelist; also handle free-form questions.'
   'SOURCES: When using retrieved documentation, cite its filename and section in the answer. Distinguish documented application behavior from general explanations. The knowledge base does not define institution-specific lending policy or legal advice.',
   'PRIVACY: Only aggregate statistics are available. Never ask for, infer or reproduce customer names, customer IDs, phone numbers, email addresses, PAN, Aadhaar, addresses, account numbers or individual loan/payment details.',
   'READ ONLY: Tools are read-only. Never claim to approve, reject, close, edit, delete, waive, create or record anything. Never request or invent a write operation.',
@@ -318,7 +319,7 @@ async function requestOpenRouter(messages) {
         ...(process.env.OPENROUTER_APP_TITLE ? { 'X-OpenRouter-Title': process.env.OPENROUTER_APP_TITLE } : {})
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
+        model: DEFAULT_MODEL,
         messages,
         tools: TOOL_DEFINITIONS,
         tool_choice: 'auto',
@@ -414,7 +415,7 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
     if (!toolCalls.length) {
       finalResult = {
         reply: typeof assistantMessage.content === 'string' ? assistantMessage.content.trim() : '',
-        model: result.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL
+        model: result.model || DEFAULT_MODEL
       };
       break;
     }

@@ -304,7 +304,7 @@ export default function AssistantChat({ currentView }) {
               </div>
             </div>
             <div className="assistant-chat-header-actions">
-              <button type="button" title="Clear conversation" onClick={clearConversation}>
+              <button type="button" title="Clear conversation" onClick={clearConversation} disabled={isLoading}>
                 <FiTrash2 />
               </button>
               <button

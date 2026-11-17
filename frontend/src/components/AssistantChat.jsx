@@ -306,9 +306,9 @@ export default function AssistantChat({ currentView }) {
               </div>
             ))}
 
-            {messages.length === 1 && (
+            {!isLoading && (
               <div className="assistant-chat-suggestions">
-                <p>Try asking</p>
+                <p>Quick prompts</p>
                 {suggestions.map(item => {
                   const Icon = item.icon;
                   return (

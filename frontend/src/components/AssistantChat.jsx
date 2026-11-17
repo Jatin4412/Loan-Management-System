@@ -3,6 +3,8 @@ import {
   FiActivity,
   FiBarChart2,
   FiMessageCircle,
+  FiMaximize2,
+  FiMinimize2,
   FiSend,
   FiTrash2,
   FiX
@@ -166,6 +168,7 @@ function AssistantMessage({ content }) {
 
 export default function AssistantChat({ currentView }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState([welcomeMessage]);
   const [isLoading, setIsLoading] = useState(false);
@@ -193,7 +196,13 @@ export default function AssistantChat({ currentView }) {
     if (!content || isLoading) return;
 
     const history = messages
-      .filter(item => item.role === "user" || item.role === "assistant")
+      .filter(item =>
+        (item.role === "user" || item.role === "assistant") &&
+        !item.isError &&
+        !item.isFailed &&
+        item.id !== "welcome" &&
+        typeof item.content === "string"
+      )
       .slice(-8)
       .map(item => ({ role: item.role, content: item.content }));
 
@@ -238,7 +247,7 @@ export default function AssistantChat({ currentView }) {
       ]);
     } catch (error) {
       setMessages(previous => [
-        ...previous,
+        ...previous.map(item => item.id === userMessage.id ? { ...item, isFailed: true } : item),
         {
           id: Date.now() + "-error",
           role: "assistant",
@@ -271,7 +280,7 @@ export default function AssistantChat({ currentView }) {
   return (
     <div className="assistant-chat-root">
       {isOpen && (
-        <section className="assistant-chat-panel" aria-label="SmarterLoans AI assistant">
+        <section className={"assistant-chat-panel" + (isExpanded ? " expanded" : "")} aria-label="SmarterLoans AI assistant">
           <header className="assistant-chat-header">
             <div className="assistant-chat-brand">
               <div className="assistant-chat-avatar">
@@ -286,7 +295,15 @@ export default function AssistantChat({ currentView }) {
               <button type="button" title="Clear conversation" onClick={clearConversation}>
                 <FiTrash2 />
               </button>
-              <button type="button" title="Close assistant" onClick={() => setIsOpen(false)}>
+              <button
+                type="button"
+                title={isExpanded ? "Restore assistant size" : "Expand assistant"}
+                aria-label={isExpanded ? "Restore assistant size" : "Expand assistant"}
+                onClick={() => setIsExpanded(previous => !previous)}
+              >
+                {isExpanded ? <FiMinimize2 /> : <FiMaximize2 />}
+              </button>
+              <button type="button" title="Close assistant" onClick={() => { setIsExpanded(false); setIsOpen(false); }}>
                 <FiX />
               </button>
             </div>

@@ -318,7 +318,7 @@ async function executeReadTool(toolCall) {
   }
 }
 
-async function requestOpenRouter(messages, round, requestId) {
+async function requestOpenRouter(messages, round, requestId, sessionId) {
   const roles = messages.map(item => item.role);
   const toolResultCount = messages.filter(item => item.role === 'tool').length;
 
@@ -347,6 +347,7 @@ async function requestOpenRouter(messages, round, requestId) {
         },
         body: JSON.stringify({
           model: DEFAULT_MODEL,
+          session_id: sessionId,
           messages,
           tools: TOOL_DEFINITIONS,
           tool_choice: 'auto',
@@ -439,7 +440,7 @@ async function requestOpenRouter(messages, round, requestId) {
   }
 }
 
-exports.chat = async ({ message, history = [], pageView = '' }) => {
+exports.chat = async ({ message, history = [], pageView = '', sessionId = '' }) => {
   if (!process.env.OPENROUTER_API_KEY) {
     throw createError('OpenRouter is not configured. Add OPENROUTER_API_KEY to the repository root .env file and restart the server.', 503);
   }
@@ -478,6 +479,9 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
   const today = new Date().toISOString().slice(0, 10);
 
   const requestId = randomUUID();
+  const safeSessionId = typeof sessionId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(sessionId)
+    ? sessionId
+    : randomUUID();
 
   const messages = [
     {
@@ -495,7 +499,7 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
   let toolRounds = 0;
 
   while (toolRounds <= MAX_TOOL_ROUNDS) {
-    const result = await requestOpenRouter(messages, toolRounds + 1, requestId);
+    const result = await requestOpenRouter(messages, toolRounds + 1, requestId, safeSessionId);
     const choice = result.choices && result.choices[0];
     const assistantMessage = choice && choice.message;
 

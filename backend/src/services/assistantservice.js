@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { randomUUID } = require('crypto');
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'openrouter/auto';
@@ -11,8 +12,7 @@ const SYSTEM_PROMPT = [
   'Help with application documentation, loan terminology, repayment concepts, and aggregate portfolio analysis.',
   'LANGUAGE: Detect the language of the latest user message and answer in that same language. Support English, Hindi, Hinglish and other languages supported by the selected model. Do not switch languages unless requested.',
   'KNOWLEDGE SEARCH: Use search_knowledge for application workflows, definitions, calculations and documented procedures. The knowledge base is currently written in English. When a user asks in another language, translate the topic into concise English search keywords for the search_knowledge query, then answer in the user language.',
-  'LIVE DATA: Use the available analytics tools for current database facts. Never invent numbers, date ranges, trends or comparisons. If a required tool does not return the information, explain that it is unavailable.',
-  'TOOL USE: All read-only tools are available on every turn, including follow-up messages. Use search_knowledge for application workflows, terminology, formulas and documented procedures. Use get_portfolio_summary for current portfolio counts and outstanding balance, get_overdue_summary for overdue counts, amounts and aging, get_loan_distribution for loan category breakdowns, and get_collection_summary for payment collections over the requested date range. When a question requires more than one type of data, call every relevant tool before answering. Continue calling relevant tools after each result until the requested analysis is complete. Do not ask permission before running these read-only queries. The suggested prompts in the interface are examples, not a whitelist; also handle free-form questions.',
+  'LIVE DATA AND TOOLS: Use search_knowledge for documented application workflows and terminology. Use the relevant analytics tools for current database facts: get_portfolio_summary for overall counts and balances, get_overdue_summary for overdue exposure, get_loan_distribution for loan category and category-by-status breakdowns, and get_collection_summary for collections within a date range. Call each tool needed to answer the question, including multiple tools for combined analysis. Never invent missing figures or infer category-level statuses from unrelated totals or zero balances.',
   'SOURCES: When using retrieved documentation, cite its filename and section in the answer. Distinguish documented application behavior from general explanations. The knowledge base does not define institution-specific lending policy or legal advice.',
   'PRIVACY: Only aggregate statistics are available. Never ask for, infer or reproduce customer names, customer IDs, phone numbers, email addresses, PAN, Aadhaar, addresses, account numbers or individual loan/payment details.',
   'READ ONLY: Tools are read-only. Never claim to approve, reject, close, edit, delete, waive, create or record anything. Never request or invent a write operation.',
@@ -83,7 +83,7 @@ const TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'get_loan_distribution',
-      description: 'Read aggregate loan counts, principal totals and outstanding balance grouped by loan category. No individual loan records are returned.',
+      description: 'Read aggregate loan counts, principal totals and outstanding balance grouped by loan category, including counts by loan status within each category. No individual loan records are returned.',
       parameters: {
         type: 'object',
         properties: {},
@@ -260,10 +260,15 @@ async function getLoanDistribution(args) {
   if (!hasOnlyKeys(args, [])) throw new Error('This tool does not accept arguments.');
 
   const [rows] = await db.execute(
-    'SELECT loan_type AS loanType, COUNT(*) AS loanCount, ' +
-    'COALESCE(SUM(principal_amount), 0) AS totalPrincipal, ' +
-    'COALESCE(SUM(CASE WHEN status IN (\'APPROVED\', \'ACTIVE\') THEN balance ELSE 0 END), 0) AS outstandingBalance ' +
-    'FROM loans GROUP BY loan_type ORDER BY loanCount DESC'
+    "SELECT loan_type AS loanType, COUNT(*) AS loanCount, " +
+    "COALESCE(SUM(principal_amount), 0) AS totalPrincipal, " +
+    "COALESCE(SUM(CASE WHEN status IN ('APPROVED', 'ACTIVE') THEN balance ELSE 0 END), 0) AS outstandingBalance, " +
+    "SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approvedLoans, " +
+    "SUM(CASE WHEN status = 'ACTIVE' THEN 1 ELSE 0 END) AS activeStatusLoans, " +
+    "SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pendingLoans, " +
+    "SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) AS rejectedLoans, " +
+    "SUM(CASE WHEN status = 'CLOSED' THEN 1 ELSE 0 END) AS closedLoans " +
+    "FROM loans GROUP BY loan_type ORDER BY loanCount DESC"
   );
 
   return {
@@ -271,7 +276,14 @@ async function getLoanDistribution(args) {
       loanType: String(row.loanType || 'Unspecified'),
       loanCount: Number(row.loanCount || 0),
       totalPrincipal: Number(row.totalPrincipal || 0),
-      outstandingBalance: Number(row.outstandingBalance || 0)
+      outstandingBalance: Number(row.outstandingBalance || 0),
+      statusBreakdown: {
+        approved: Number(row.approvedLoans || 0),
+        active: Number(row.activeStatusLoans || 0),
+        pending: Number(row.pendingLoans || 0),
+        rejected: Number(row.rejectedLoans || 0),
+        closed: Number(row.closedLoans || 0)
+      }
     }))
   };
 }
@@ -306,43 +318,124 @@ async function executeReadTool(toolCall) {
   }
 }
 
-async function requestOpenRouter(messages) {
-  let response;
+async function requestOpenRouter(messages, round, requestId) {
+  const roles = messages.map(item => item.role);
+  const toolResultCount = messages.filter(item => item.role === 'tool').length;
 
-  try {
-    response = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
-        'Content-Type': 'application/json',
-        ...(process.env.OPENROUTER_HTTP_REFERER ? { 'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER } : {}),
-        ...(process.env.OPENROUTER_APP_TITLE ? { 'X-OpenRouter-Title': process.env.OPENROUTER_APP_TITLE } : {})
-      },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        messages,
-        tools: TOOL_DEFINITIONS,
-        tool_choice: 'auto',
-        parallel_tool_calls: false,
-        temperature: 0.2,
-        max_tokens: 1000
-      }),
-      signal: AbortSignal.timeout(45000)
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    console.info('[assistant] OpenRouter request', {
+      requestId,
+      round,
+      attempt,
+      messageCount: messages.length,
+      roles,
+      toolResultCount,
+      model: DEFAULT_MODEL,
+      toolChoice: 'auto'
     });
-  } catch (error) {
-    throw createError('Could not reach OpenRouter. Check your internet connection and try again.', 502);
-  }
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    console.error('OpenRouter request failed:', response.status, detail.slice(0, 1000));
-    throw createError('OpenRouter could not complete the request. Check the API key, selected model and account limits.', 502);
-  }
+    let response;
 
-  try {
-    return await response.json();
-  } catch (error) {
-    throw createError('OpenRouter returned an invalid response. Please try again.', 502);
+    try {
+      response = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
+          'Content-Type': 'application/json',
+          ...(process.env.OPENROUTER_HTTP_REFERER ? { 'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER } : {}),
+          ...(process.env.OPENROUTER_APP_TITLE ? { 'X-OpenRouter-Title': process.env.OPENROUTER_APP_TITLE } : {})
+        },
+        body: JSON.stringify({
+          model: DEFAULT_MODEL,
+          messages,
+          tools: TOOL_DEFINITIONS,
+          tool_choice: 'auto',
+          parallel_tool_calls: false,
+          temperature: 0.2,
+          max_tokens: 1000
+        }),
+        signal: AbortSignal.timeout(45000)
+      });
+    } catch (error) {
+      console.error('[assistant] OpenRouter transport error', {
+        requestId,
+        round,
+        attempt,
+        error: error.message
+      });
+      throw createError('Could not reach OpenRouter. Check your internet connection and try again.', 502);
+    }
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      let upstreamError = {};
+
+      try {
+        upstreamError = JSON.parse(detail).error || {};
+      } catch (error) {
+        upstreamError = {};
+      }
+
+      const upstreamMessage = upstreamError.message || detail.slice(0, 500);
+      const upstreamCode = upstreamError.code || response.status;
+
+      console.error('[assistant] OpenRouter upstream error', {
+        requestId,
+        round,
+        attempt,
+        status: response.status,
+        code: upstreamCode,
+        message: upstreamMessage,
+        toolResultCount,
+        roles,
+        upstreamRequestId: response.headers.get('x-openrouter-request-id')
+      });
+
+      const noEligibleModel =
+        response.status === 404 &&
+        upstreamMessage.includes('No models satisfy the decisions policy and request restrictions');
+
+      if (noEligibleModel && attempt === 1) {
+        await new Promise(resolve => setTimeout(resolve, 350));
+        continue;
+      }
+
+      if (noEligibleModel) {
+        throw createError(
+          'OpenRouter could not find an eligible model for this request after one retry. Please try again; the backend log contains the routing details.',
+          502
+        );
+      }
+
+      throw createError(
+        'OpenRouter request failed with status ' + response.status + '. Check the backend log for the upstream error details.',
+        502
+      );
+    }
+
+    let result;
+
+    try {
+      result = await response.json();
+    } catch (error) {
+      throw createError('OpenRouter returned an invalid response. Please try again.', 502);
+    }
+
+    const choice = result.choices && result.choices[0];
+    const toolCalls = choice && choice.message && Array.isArray(choice.message.tool_calls)
+      ? choice.message.tool_calls
+      : [];
+
+    console.info('[assistant] OpenRouter response', {
+      requestId,
+      round,
+      attempt,
+      model: result.model || DEFAULT_MODEL,
+      finishReason: choice && choice.finish_reason,
+      toolCalls: toolCalls.map(toolCall => toolCall.function && toolCall.function.name).filter(Boolean)
+    });
+
+    return result;
   }
 }
 
@@ -384,6 +477,8 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
   const safePageView = allowedViews.includes(pageView) ? pageView : 'Unknown';
   const today = new Date().toISOString().slice(0, 10);
 
+  const requestId = randomUUID();
+
   const messages = [
     {
       role: 'system',
@@ -400,7 +495,7 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
   let toolRounds = 0;
 
   while (toolRounds <= MAX_TOOL_ROUNDS) {
-    const result = await requestOpenRouter(messages);
+    const result = await requestOpenRouter(messages, toolRounds + 1, requestId);
     const choice = result.choices && result.choices[0];
     const assistantMessage = choice && choice.message;
 
@@ -427,7 +522,10 @@ exports.chat = async ({ message, history = [], pageView = '' }) => {
     messages.push(assistantMessage);
 
     for (const toolCall of toolCalls) {
+      const toolName = toolCall.function && toolCall.function.name;
+      console.info('[assistant] Executing read-only tool', { requestId, round: toolRounds + 1, tool: toolName });
       const toolResult = await executeReadTool(toolCall);
+      console.info('[assistant] Read-only tool completed', { requestId, round: toolRounds + 1, tool: toolName, success: toolResult.success });
       messages.push({
         role: 'tool',
         tool_call_id: toolCall.id,
